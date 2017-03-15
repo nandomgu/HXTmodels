@@ -369,9 +369,10 @@ def model0(prm,experimentData, fitStrains, plotSim=0):
 	lsqerrs={} ### simulation error dictionary
 	####for each of the experiments, simulate model1
 	##it seems you are not allowed to interpolate at the very edge of the experiment time so we go one point before.
+	
 	##we find what variables in the model correspond to the strains we are interested in fitting
 	fitStrainIndices=array([where([j==strain for j in varnames]) for strain in fitStrains]).flatten()
-	##we build a dictionary to access these indeces by name.
+	##we build a dictionary to access these indices by name.
 	simStrainIndices=dict(zip( fitStrains, fitStrainIndices))
 	j=0;
 	for date in experimentData.keys():
