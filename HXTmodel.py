@@ -25,15 +25,11 @@ def inList(a, lst):
 def removeInfinites(a):
 	return(a[isfinite(a)])
 ## this generates input interpolation functions for any experiment in experimentData,
-## such that the input can be retrieved at any timempointdef inputFunction(date):
+## such that the input can be retrieved at any timempoint
+def inputFunction(date):
 	return interp1d(experimentData[date]['time'],experimentData[date]['input']) 
 
 
-####getting the experiment Data. experimentData is a dictionary of the form
-#####experimentData[EXPT_DATE] ['time']			the timepoints of the experiment in hrs
-#								['input']		the normalised input 
-#								['strains']     the name of each of the strains in the experiment.
-#								['means']       the mean expression data for each of the 'strains', by column
 
 
 #Input function from simulated steps
