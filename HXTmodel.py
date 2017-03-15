@@ -6,8 +6,16 @@ from math import exp
 from numpy import matrix,column_stack, where, ones, zeros, array, size, concatenate, nan
 import numpy as np
 ##if in list return index
-from AllExperimentData import experimentData, getStrains, getStrain
 
+####getting the experiment Data. experimentData is a dictionary of the form
+#####experimentData[EXPT_DATE]		['time']	the timepoints of the experiment in hrs
+#					['input']	the normalised input 
+#					['strains']	the name of each of the strains in the experiment.
+#					['means']	the mean expression data for each of the 'strains', by column
+
+
+from AllExperimentData import experimentData, getStrains, getStrain
+ 
 def inList(a, lst):
 	if a in lst:
 		return(array(where([a==j for j in lst])).flatten())
@@ -16,8 +24,8 @@ def inList(a, lst):
 
 def removeInfinites(a):
 	return(a[isfinite(a)])
-## this generates input functions for any experiment in experimentData
-def inputFunction(date):
+## this generates input interpolation functions for any experiment in experimentData,
+## such that the input can be retrieved at any timempointdef inputFunction(date):
 	return interp1d(experimentData[date]['time'],experimentData[date]['input']) 
 
 
@@ -32,13 +40,15 @@ def inputFunction(date):
 
 def step(len1, len2, len3):
 	 return concatenate([zeros(len1), ones(len2), zeros(len3)])
+#example: generating a step input with 180 min lag time, 480 min step length, and 500 min post step
 
 stepInput=step(180, 480, 500)
 
 tstep= array([j for j in range(0, size(stepInput))])
 f= interp1d( tstep, stepInput)
 
-###paramInf is a dictionary with details about each model
+##paramInf is a dictionary with details about each *possible* parameter in the model. different models might need access
+###to the same or different parameter Information, and some parameters could potentially be repurposed.
 
 paramInf={};
 paramInf['VStd1']			={'defaultValue': 1, 'priorType': 'uniformExp', 'priorRange': [-6, 6]}; #%maximum production rate of Std1
@@ -97,6 +107,7 @@ paramInf['KDegHXT7'] ={'defaultValue': .3, 'priorType': 'uniformExp', 'priorRang
 
 ## From the information in paramInf, Here we assign starting value for each of the parameters
 ## either the default from above or sampling from the distribution/range
+
 params={};
 params['VStd1']					=paramInf['VStd1']['defaultValue']
 params['KSelfStd1']				=paramInf['KSelfStd1']['defaultValue']
@@ -153,10 +164,23 @@ params['VHXT3']					=paramInf['VHXT3']['defaultValue']
 params['VHXT4']					=paramInf['VHXT4']['defaultValue']
 params['VHXT7']					=paramInf['VHXT7']['defaultValue']
 
+#Declaring the order of the variables each equation represents.
+varnames=['Std1',
+ 'Mth1',
+ 'Snf1',
+ 'Mig1',
+ 'HXT1',
+ 'HXT2',
+ 'HXT3',
+ 'HXT4',
+ 'HXT7',
+ 'Hxt1',
+ 'Hxt2',
+ 'Hxt3',
+ 'Hxt4',
+ 'Hxt7']
 
-
-##default parameter values here
-#First Regulators, then Transcripts (HXT), then proteins (Hxt).
+#Now declaring a default initial condition for every variable
 initialConditionsDict={
 'Std1':0,
 'Mth1':0,
@@ -174,23 +198,7 @@ initialConditionsDict={
 'Hxt7':0,
 }
 
-###Now we convert the values in the ordered dictionary into the specific order we want them.
-
-varnames=['Std1',
-'Mth1',
-'Snf1',
-'Mig1',
-'HXT1',
-'HXT2',
-'HXT3',
-'HXT4',
-'HXT7',
-'Hxt1',
-'Hxt2',
-'Hxt3',
-'Hxt4',
-'Hxt7']
-
+### we create an array from the dictionary above (the model probably requires an array and dicts are disordered)
 
 initialConditions= array([initialConditionsDict[j] for j in varnames])
 
@@ -224,7 +232,8 @@ KMig1HXT4=params['KMig1HXT4'];
 KDegSnf1=params['KDegSnf1'];
 basalDegSnf1=params['basalDegSnf1'];
 
-#### assigning the starting values to the parameter list
+#### assigning the starting values to a parameter array that will be given to the model. we explicitly write the numbers
+#### for reference
 
 prm=zeros(47);
 prm[0]	=params['VStd1']		
@@ -275,19 +284,10 @@ prm[44]	=params['VHXT3']
 prm[45]	=params['VHXT4']		
 prm[46]	=params['VHXT7']		
 
+##generate model function for HXT model 1 for any input function I. 
+##Here we assume that the function environment has access to the params variable.
+#the output is a model function where the glucose can be different.
 
-### These are t
-def func(abc,t=0):
-		return array(
-		[I(t)*kia*((1-abc[0])/((1-abc[0])+kmia))-Fa*kfa*(abc[0]/(abc[0]+kmfa))+abc[2]*kca*((1-abc[0])/((1-abc[0])+kmca)),
-				-Fb*kfb*(abc[1]/(abc[1]+kmfb))+abc[2]*kcb*((1-abc[1])/((1-abc[1])+kmcb)),
-				-Fc*kfc*(abc[2]/(abc[2]+kmfc))+abc[0]*kac*((1-abc[2])/((1-abc[2])+kmac))]				
-				)
-
-
-#Here we assume that the function environment has access to the parameter variables
-
-##generate model function for any input function I
 def inputModel1(I):
 	def func(incons, t=0):
 		return array(
@@ -309,8 +309,13 @@ def inputModel1(I):
 	return func
 	
 	
-###actual model function 
- #prm is the parameter array. expd is the experimentData structure
+#prm is the parameter array. expd is the experimentData structure. we pass the values from prm to internal structure params.
+#fitStrains specifies the strains we are interested in fitting. 
+#outputs:
+#	totalerrs= sum of all errors from all gene specific fittings. not normalised in any way
+#	lsqerrs= dictionary where the fitting error is stored by experiment and strain.
+#	ints= full results of the simulation of every experiment, for plotting purposes
+ 
 def model0(prm,experimentData, fitStrains, plotSim=0): 
 	params['VStd1']			=prm[0]	
 	params['KSelfStd1']		=prm[1]	
@@ -362,7 +367,6 @@ def model0(prm,experimentData, fitStrains, plotSim=0):
 
 	#Define initial conditions, default is all zeros
 	totalerr=0
-	abc = initialConditions
 	ints={} ###ints is a list that contains the numerical integration results
 	lsqerrs={} ### simulation error dictionary
 	####for each of the experiments, simulate model1
