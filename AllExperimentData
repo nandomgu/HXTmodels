@@ -1,3 +1,12 @@
+####all relevant Hexose transporter experiment data in one file. last updat 20170315
+###creates a data structure called experimentData. 
+####experimentData is a dictionary of the form
+#####experimentData[EXPT_DATE] ['time']			the timepoints of the experiment in hrs
+#				['input']		the normalised input 
+#		              ['strains']    the name of each of the strains in the experiment.
+#		               ['means']      the mean expression data for each of the 'strains', by column
+ 
+
 from numpy import array, where, size
 ####all Experiments in one file
 ###the experimentData variable contains replicate info.
