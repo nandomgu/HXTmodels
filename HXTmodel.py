@@ -27,7 +27,7 @@ def removeInfinites(a):
 ## this generates input interpolation functions for any experiment in experimentData,
 ## such that the input can be retrieved at any timempoint
 def inputFunction(date):
-	return interp1d(experimentData[date]['time'],experimentData[date]['input']) 
+	return interp1d(np.around(experimentData[date]['time'],2),experimentData[date]['input']) 
 
 
 
