@@ -15,12 +15,12 @@ experimentData={}
 
 ###experimentFunctions. functions to get specific information about the experiments
 ###retrieve data of one strain
-def getStrain(expt, strain):
-	return experimentData[expt]['means'][:, where([j==strain for j in experimentData[expt]['strains']])].flatten()
-def getStrains(expt, strains):
+def getStrain(expt, strain, bg=0):
+	return experimentData[expt]['means'][:, where([j==strain for j in experimentData[expt]['strains']])].flatten()-bg
+def getStrains(expt, strains, bg=0):
 	out={}
 	for j in strains:
-		out[j]= getStrain(expt, j)
+		out[j]= getStrain(expt, j, bg)
 	return out
 
  

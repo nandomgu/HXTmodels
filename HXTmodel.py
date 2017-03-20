@@ -12,6 +12,31 @@ import numpy as np
 #					['input']	the normalised input 
 #					['strains']	the name of each of the strains in the experiment.
 #					['means']	the mean expression data for each of the 'strains', by column
+#colors to plot
+nicePastels=[
+'#8dd3c7',
+'#ffffb3',
+'#bebada',
+'#fb8072',
+'#80b1d3',
+'#fdb462',
+'#b3de69',
+'#fccde5',
+'#d9d9d9',
+'#bc80bd',
+'#ccebc5',
+'#ffed6f',
+'#a6cee3',
+'#1f78b4',
+'#b2df8a',
+'#33a02c']
+
+def nonnegative(a):
+	if a<0:
+		return 0
+	else:
+		return a
+
 
 
 from AllExperimentData import experimentData, getStrains, getStrain
@@ -21,6 +46,7 @@ def inList(a, lst):
 		return(array(where([a==j for j in lst])).flatten())
 	else:
 		return nan
+
 
 def removeInfinites(a):
 	return(a[isfinite(a)])
@@ -278,8 +304,14 @@ prm[42]	=params['VHXT1']
 prm[43]	=params['VHXT2']		
 prm[44]	=params['VHXT3']		
 prm[45]	=params['VHXT4']		
-prm[46]	=params['VHXT7']		
+prm[46]	=params['VHXT7']	
 
+
+
+relevantParams={}
+relevantParams['Std1']= array([0,1,2,3,4])
+relevantParams['Mth1']= array([5,6,7,8,9])
+relevantParams['Std1Mth1']= array([0,1,2,3,4,5,6,7,8,9])
 ##generate model function for HXT model 1 for any input function I. 
 ##Here we assume that the function environment has access to the params variable.
 #the output is a model function where the glucose can be different.
@@ -303,7 +335,26 @@ def inputModel1(I):
 		params['VHxt7']*incons[8]- params['KDegHxt7']*incons[8]	#Hxt7 equation
 		])
 	return func
-	
+
+def inputModelDefaults(I):
+	def func(incons, t=0):
+		return array(
+		[  1/(1+(incons[0]/.1)**4 +(incons[1]/20))**4 - .05*incons[0] -((1*I(t))**4/(.1**4+I(t)**4))*incons[0], #incons[0]=Std1 #DStd1
+		1- .4*incons[1]- ((2*I(t))**4/(.5**4+I(t)**4))*incons[1],  #incons[1]= Mth1 #DMth1
+		params['VSnf1']+params['KFBSnf1']*incons[2]+I(t)/(params['KDegSnf1']+I(t))  - params['basalDegSnf1']*incons[2], ##Snf1 equation incons[2]= Snf1
+		I(t)**4/(0.01**4+I(t)**4)  -.6*incons[3], ##Mig1 equation. incons[3] = Mig1
+		params['VHXT1']/(1+ incons[1]/.001)- .05*incons[4], ##HXT1 equation. incons[4]= HXT1. regulated by Mth1 
+		params['VHXT2']/(1+((incons[1]/params['KMth1HXT2'])**4)+(incons[3]/params['KMig1HXT2']))-params['KDegHXT2']*incons[5], ##HXT2 equation.##incons[5]= HXT2
+		params['VHXT3']/(1+ incons[1]/params['KMth1HXT3']**4)- params['KDegHXT3']*incons[6],##HXT3 equation.#incons[6]= HXT3
+		1/(1+(incons[1]/params['KMth1HXT4'])**4+(incons[3]/params['KMig1HXT4'])**4)- params['KDegHXT4']*incons[7], ##HXT4 equation. incons[7]=HXT4
+		params['VHXT7']/(1+ incons[3]/.1**4)- params['KDegHXT7']*incons[8]-1*incons[8]*I(t),##HXT7 equation. incons[8]=HXT7
+		10000*incons[4]- .00001*incons[9],##Hxt1 equation.
+		10000*incons[5]- .00001*incons[10],##Hxt2 equation.
+		10000*incons[6]- .00001*incons[11],##Hxt3 equation.
+		10000*incons[7]- .00001*incons[12],##Hxt4 equation.
+		10000*incons[8]- .00001*incons[13]	#Hxt7 equation
+		])
+	return func	
 	
 #prm is the parameter array. expd is the experimentData structure. we pass the values from prm to internal structure params.
 #fitStrains specifies the strains we are interested in fitting. 
@@ -311,7 +362,7 @@ def inputModel1(I):
 #	totalerrs= sum of all errors from all gene specific fittings. not normalised in any way
 #	lsqerrs= dictionary where the fitting error is stored by experiment and strain.
 #	ints= full results of the simulation of every experiment, for plotting purposes
- 
+
 def model0(prm,experimentData, fitStrains, plotSim=0): 
 	params['VStd1']			=prm[0]	
 	params['KSelfStd1']		=prm[1]	
@@ -371,26 +422,42 @@ def model0(prm,experimentData, fitStrains, plotSim=0):
 	fitStrainIndices=array([where([j==strain for j in varnames]) for strain in fitStrains]).flatten()
 	##we build a dictionary to access these indeces by name.
 	simStrainIndices=dict(zip( fitStrains, fitStrainIndices))
-	
-	j=0;
+	bgValue=800;
+	FLGain=10; #Fluorescence units
+	nd=-3;
 	for date in experimentData.keys():
+		## background value for the data. the approximate mean of the imBackground field.
+		dataDict=getStrains(date, fitStrains, bg=bgValue)
+		#getting the initial conditions from the data 
+		
+		for strn in fitStrains:
+			if np.size(dataDict[strn])>0:
+				initialConditions[simStrainIndices[strn]]= dataDict[strn][0]
+		
 		#for every experiment we simulate all variables
-		ints[date]=integrate.odeint(inputModel1(inputFunction(date)),initialConditions,experimentData[date]['time'][0:-1]) 
+		ints[date]=integrate.odeint(inputModelDefaults(inputFunction(date)), initialConditions,experimentData[date]['time'][0:nd]) 
+		ints[date][ints[date]<0]=0;
+		#ints[date]=integrate.odeint(inputModel1(inputFunction(date)),initialConditions,experimentData[date]['time'][0:-1]) 
 		##indices of strains to be fitted
 		##
 		###PlaceHolder matrix takes the same shape of the simulation output. we will put the data in here.
 		#placeHolderMatrix=zeros([np.zize(ints[date],0]), np.size(varnames)]) 
-		dataDict=getStrains(date, fitStrains)
 		simLSQ={}
-		bgValue=700;## background value for the data. the approximate mean of the imBackground field.
 		for strn in dataDict.keys():
 			if size(dataDict[strn])==0:
 				simLSQ[strn]=nan
 			else:
-				simLSQ[strn]= sum((ints[date][:, simStrainIndices[strn]]-dataDict[strn][0:-1])**2)
-				totalerr+=sum((ints[date][:, simStrainIndices[strn]]-(dataDict[strn][0:-1]-bgValue))**2)
+				simLSQ[strn]= sum((ints[date][:, simStrainIndices[strn]]-dataDict[strn][0:nd])**2)
+				totalerr+=sum((ints[date][:, simStrainIndices[strn]]-(dataDict[strn][0:nd]-bgValue))**2)
 		if plotSim==1:
-			plt.plot(experimentData[date]['time'][0:-1], ints[date][:, [simStrainIndices[j] for j in fitStrains]])
+			plt.subplot(311)
+			plt.plot(experimentData[date]['time'][0:nd], experimentData[date]['input'][0:nd])		
+			plt.subplot(312)
+			#for now only plotting the first one in list. can't figure out a way to retrieve 2+ indices quickly without a mess.
+			if fitStrains[0] in experimentData[date]['strains']:
+				plt.plot(experimentData[date]['time'][0:nd], dataDict[fitStrains[0]][0:nd], label=date)	
+			plt.subplot(313)
+			plt.plot(experimentData[date]['time'][0:nd], ints[date][:, [simStrainIndices[j] for j in fitStrains]], label=date)
 		lsqerrs[date]=simLSQ	
 
 	return totalerr, lsqerrs, ints
