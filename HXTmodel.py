@@ -5,6 +5,8 @@ from scipy.interpolate import interp1d
 from math import exp
 from numpy import matrix,column_stack, where, ones, zeros, array, size, concatenate, nan
 import numpy as np
+from lmfit import minimize, Parameters
+
 ##if in list return index
 
 ####getting the experiment Data. experimentData is a dictionary of the form
@@ -186,6 +188,8 @@ params['VHXT3']					=paramInf['VHXT3']['defaultValue']
 params['VHXT4']					=paramInf['VHXT4']['defaultValue']
 params['VHXT7']					=paramInf['VHXT7']['defaultValue']
 
+
+
 #Declaring the order of the variables each equation represents.
 varnames=['Std1',
  'Mth1',
@@ -307,6 +311,11 @@ prm[45]	=params['VHXT4']
 prm[46]	=params['VHXT7']	
 
 
+#lmparams=Parameters()
+
+#[lmparams.add(parname, value=params[parname]) for parname in params.keys()]
+
+
 
 relevantParams={}
 relevantParams['Std1']= array([0,1,2,3,4])
@@ -364,53 +373,53 @@ def inputModelDefaults(I):
 #	ints= full results of the simulation of every experiment, for plotting purposes
 
 def model0(prm,experimentData, fitStrains, plotSim=0): 
-	params['VStd1']			=prm[0]	
-	params['KSelfStd1']		=prm[1]	
-	params['KDegStd1']		=prm[2]	
-	params['threshStd1']	=prm[3]	
-	params['basalDegStd1']	=prm[4]	
-	params['VMth1']			=prm[5]	
-	params['basalDegMth1']	=prm[6]	
-	params['KDegMth1']		=prm[7]	
-	params['threshMth1']	=prm[8]	
-	params['KRepMth1']		=prm[9]	
-	params['thresholdStd1Mig']	=prm[10]	
-	params['hillactive']	=prm[11]	
-	params['KSnf1']			=prm[12]	
-	params['KRepSnf1Mig1']	=prm[13]	
-	params['KEnhance']		=prm[14]	
-	params['KStd1HXT4']		=prm[15]	
-	params['KMth1HXT1']		=prm[16]	
-	params['KMth1HXT2']		=prm[17]	
-	params['KMth1HXT3']		=prm[18]	
-	params['KMth1HXT4']		=prm[19]	
-	params['KMig1HXT2']		=prm[20]	
-	params['KMig1HXT4']		=prm[21]	
-	params['KMig1HXT7']		=prm[22]	
-	params['KDegSnf1']		=prm[23]	
-	params['basalDegSnf1']	=prm[24]	
-	params['VHxt1']			=prm[25]	
-	params['VHxt2']			=prm[26]	
-	params['VHxt3']			=prm[27]	
-	params['VHxt4']			=prm[28]	
-	params['VHxt7']			=prm[29]	
-	params['KDegHxt1']		=prm[30]	
-	params['KDegHxt2']		=prm[31]	
-	params['KDegHxt3']		=prm[32]	
-	params['KDegHxt4']		=prm[33]	
-	params['KDegHxt7']		=prm[34]	
-	params['KDegHXT1']		=prm[35]	
-	params['KDegHXT2']		=prm[36]	
-	params['KDegHXT3']		=prm[37]	
-	params['KDegHXT4']		=prm[38]	
-	params['KDegHXT7']		=prm[39]	
-	params['VSnf1']			=prm[40]	
-	params['KFBSnf1']		=prm[41]	
-	params['VHXT1']			=prm[42]	
-	params['VHXT2']			=prm[43]	
-	params['VHXT3']			=prm[44]	
-	params['VHXT4']			=prm[45]	
-	params['VHXT7']			=prm[46]	
+# params['VStd1']			=prm[0]	
+# 	params['KSelfStd1']		=prm[1]	
+# 	params['KDegStd1']		=prm[2]	
+# 	params['threshStd1']	=prm[3]	
+# 	params['basalDegStd1']	=prm[4]	
+# 	params['VMth1']			=prm[5]	
+# 	params['basalDegMth1']	=prm[6]	
+# 	params['KDegMth1']		=prm[7]	
+# 	params['threshMth1']	=prm[8]	
+# 	params['KRepMth1']		=prm[9]	
+# 	params['thresholdStd1Mig']	=prm[10]	
+# 	params['hillactive']	=prm[11]	
+# 	params['KSnf1']			=prm[12]	
+# 	params['KRepSnf1Mig1']	=prm[13]	
+# 	params['KEnhance']		=prm[14]	
+# 	params['KStd1HXT4']		=prm[15]	
+# 	params['KMth1HXT1']		=prm[16]	
+# 	params['KMth1HXT2']		=prm[17]	
+# 	params['KMth1HXT3']		=prm[18]	
+# 	params['KMth1HXT4']		=prm[19]	
+# 	params['KMig1HXT2']		=prm[20]	
+# 	params['KMig1HXT4']		=prm[21]	
+# 	params['KMig1HXT7']		=prm[22]	
+# 	params['KDegSnf1']		=prm[23]	
+# 	params['basalDegSnf1']	=prm[24]	
+# 	params['VHxt1']			=prm[25]	
+# 	params['VHxt2']			=prm[26]	
+# 	params['VHxt3']			=prm[27]	
+# 	params['VHxt4']			=prm[28]	
+# 	params['VHxt7']			=prm[29]	
+# 	params['KDegHxt1']		=prm[30]	
+# 	params['KDegHxt2']		=prm[31]	
+# 	params['KDegHxt3']		=prm[32]	
+# 	params['KDegHxt4']		=prm[33]	
+# 	params['KDegHxt7']		=prm[34]	
+# 	params['KDegHXT1']		=prm[35]	
+# 	params['KDegHXT2']		=prm[36]	
+# 	params['KDegHXT3']		=prm[37]	
+# 	params['KDegHXT4']		=prm[38]	
+# 	params['KDegHXT7']		=prm[39]	
+# 	params['VSnf1']			=prm[40]	
+# 	params['KFBSnf1']		=prm[41]	
+# 	params['VHXT1']			=prm[42]	
+# 	params['VHXT2']			=prm[43]	
+# 	params['VHXT3']			=prm[44]	
+# 	params['VHXT4']			=prm[45]	
+# 	params['VHXT7']			=prm[46]	
 
 	#Define initial conditions, default is all zeros
 	totalerr=0
@@ -460,4 +469,4 @@ def model0(prm,experimentData, fitStrains, plotSim=0):
 			plt.plot(experimentData[date]['time'][0:nd], ints[date][:, [simStrainIndices[j] for j in fitStrains]], label=date)
 		lsqerrs[date]=simLSQ	
 
-	return totalerr, lsqerrs, ints
+	return totalerr
